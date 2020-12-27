@@ -54,20 +54,15 @@ class Scrapper(object):
         return companies
 
     def process_company(self, company):
-        request = requests.get(
-            self.BASE_COM_V_FINANCE_DOWNLOAD
-            + f"{company}?period1={self.period1}&period2={self.period2}&interval={self.interval}&events={self.events}"
-        )
+        request = requests.get(self.get_company_url(company))
         if request.status_code == HTTPStatus.OK:
             raw_data = request.text
             data = raw_data.splitlines()
-            result = []
-            for datum in data:
-                result.append(datum.split(','))
-            for k in range(1, len(result)):
-                date_index = datetime.strptime(result[k][self.DATE_INDEX], '%Y-%m-%d').date()
-                trading_open = round(float(result[k][self.TRADING_OPEN]), 2)
-                trading_close = round(float(result[k][self.TRADING_CLOSE]), 2)
+            for datum in data[1:]:
+                split_array = datum.split(',')
+                date_index = datetime.strptime(split_array[self.DATE_INDEX], '%Y-%m-%d').date()
+                trading_open = round(float(split_array[self.TRADING_OPEN]), 2)
+                trading_close = round(float(split_array[self.TRADING_CLOSE]), 2)
                 company.company_date_data.append(CompanyDateDatum(date_index, trading_open, trading_close))
             with open(str(company) + '.csv', 'w', newline='') as csv_file:
                 wr = csv.writer(csv_file, quoting=csv.QUOTE_ALL)
@@ -75,6 +70,9 @@ class Scrapper(object):
                 for datum in company.company_date_data:
                     array_for_output.append([datum.date_index, datum.trading_open, datum.trading_close])
                 wr.writerows(array_for_output)
+
+    def get_company_url(self, company):
+        return self.BASE_COM_V_FINANCE_DOWNLOAD + f"{company}?period1={self.period1}&period2={self.period2}&interval={self.interval}&events={self.events}"
 
 
 scrapper = Scrapper(str(sys.argv[1]))
